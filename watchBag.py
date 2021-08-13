@@ -10,7 +10,7 @@ LV_BASE_URL = "https://us.louisvuitton.com/eng-us/homepage"
 BAG_URL = "https://us.louisvuitton.com/eng-us/products/neverfull-mm-damier-azur-canvas-008109#N41605"
 
 
-def random_sleep(base_time=1):
+def random_sleep(base_time=1, upper_bound=10):
     time.sleep(base_time + random.randint(0, 10))
 
 
@@ -74,7 +74,7 @@ def setup_twilio_client():
     return Client(account_sid, auth_token)
 
 
-def send_notification():
+def send_in_stock_notification():
     try:
         twilio_client = setup_twilio_client()
         twilio_client.messages.create(
@@ -86,16 +86,30 @@ def send_notification():
         logging.error("Unable to send SMS notification", e)
 
 
+def send_start_up_notification():
+    try:
+        twilio_client = setup_twilio_client()
+        twilio_client.messages.create(
+            body="Starting up Louis Vitton Bag watcher".format(BAG_URL),
+            from_=secrets.TWILIO_FROM_NUMBER,
+            to=secrets.MY_PHONE_NUMBER
+        )
+    except Exception as e:
+        logging.error("Unable to send SMS notification", e)
+
+
 def check_inventory():
     if visit_homepage_and_nav_to_bag_and_check_avail():
         logging.info("!!!!!!!!!!!!!!!Bag is available!!!!!!!!!!!!!")
-        send_notification()
+        send_in_stock_notification()
 
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
     count_check = 0
     logging.info("Starting script to check for availability of bag '{}'".format(BAG_MODEL))
+    send_start_up_notification()
+    random_sleep(30)
     while True:
         logging.debug("Checking site for stock...")
         check_inventory()
@@ -106,4 +120,4 @@ if __name__ == "__main__":
         else:
             logging.debug("Checked site {:,} times so far".format(count_check))
 
-        random_sleep(60)
+        random_sleep(30, 90)
