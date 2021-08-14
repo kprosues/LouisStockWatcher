@@ -13,7 +13,7 @@ BAG_URL = "https://us.louisvuitton.com/eng-us/products/neverfull-mm-damier-azur-
 
 
 def random_sleep(base_time=1, upper_bound=10):
-    time.sleep(base_time + random.randint(0, 10))
+    time.sleep(base_time + random.randint(0, upper_bound))
 
 
 def init_webdriver():
@@ -125,7 +125,7 @@ def visit_random_item(driver):
         else:
             logging.warning("Could not find main nav list elements")
     except Exception as e:
-        logging.error("Caught exception trying to navigate...somewhere", e)
+        logging.error("Caught exception trying to navigate...somewhere. Continuing on.")
 
 
 def setup_twilio_client():
@@ -137,10 +137,16 @@ def setup_twilio_client():
 def send_in_stock_notification():
     try:
         twilio_client = setup_twilio_client()
+        msg = "Your item is available for purchase: {}".format(BAG_URL)
         twilio_client.messages.create(
-            body="Your item is available for purchase: {}".format(BAG_URL),
+            body=msg,
             from_=secrets.TWILIO_FROM_NUMBER,
-            to=secrets.MY_PHONE_NUMBER
+            to=secrets.PHONE_NUMBER_1
+        )
+        twilio_client.messages.create(
+            body=msg,
+            from_=secrets.TWILIO_FROM_NUMBER,
+            to=secrets.PHONE_NUMBER_2
         )
     except Exception as e:
         logging.error("Unable to send SMS notification", e)
@@ -151,9 +157,15 @@ def send_start_up_notification():
     try:
         twilio_client = setup_twilio_client()
         twilio_client.messages.create(
-            body="Starting up Louis Vitton Bag watcher".format(BAG_URL),
+            body="Starting up Louis Vitton Bag watcher",
             from_=secrets.TWILIO_FROM_NUMBER,
-            to=secrets.MY_PHONE_NUMBER
+            to=secrets.PHONE_NUMBER_1
+        )
+
+        twilio_client.messages.create(
+            body="Starting up Louis Vitton Bag watcher",
+            from_=secrets.TWILIO_FROM_NUMBER,
+            to=secrets.PHONE_NUMBER_2
         )
     except Exception as e:
         logging.error("Unable to send SMS notification", e)
@@ -169,12 +181,12 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
     count_check = 0
     logging.info("Starting script to check for availability of bag '{}'".format(BAG_MODEL))
-    # send_start_up_notification()
+    send_start_up_notification()
 
     driver = init_webdriver()
     while True:
         rand_pages_visited = 0
-        num_pages_to_visit = random.randint(1, 3)
+        num_pages_to_visit = random.randint(2, 5)
         logging.info("Doing some navigation to {} random pages".format(num_pages_to_visit))
 
         while rand_pages_visited < num_pages_to_visit:
@@ -187,8 +199,8 @@ if __name__ == "__main__":
 
         count_check = count_check + 1
         if count_check % 10 == 0:
-            logging.info("Checked site {:,} times so far".format(count_check))
+            logging.info("Checked for in-stock status {:,} times so far".format(count_check))
         else:
-            logging.debug("Checked site {:,} times so far".format(count_check))
+            logging.debug("Checked or in-stock status {:,} times so far".format(count_check))
 
-        random_sleep(30, 90)
+        random_sleep(20, 30)
