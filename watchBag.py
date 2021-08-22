@@ -7,9 +7,13 @@ import random
 import secrets  # from secrets.py in this folder
 
 MAIN_SECTIONS = ["NEW", "WOMEN", "MEN"]
-BAG_MODEL = "N41605"
+WATCH_ITEMS_DICT = {"N50047": "https://us.louisvuitton.com/eng-us/products/neverfull-mm-damier-azur-canvas-nvprod2800151v",
+                    "N41605": "https://us.louisvuitton.com/eng-us/products/neverfull-mm-damier-azur-canvas-008109",
+                    "N41604": "https://us.louisvuitton.com/eng-us/products/neverfull-gm-damier-azur-canvas-008066",
+                    "N42233": "https://us.louisvuitton.com/eng-us/products/graceful-mm-damier-azur-canvas-nvprod840044v",
+                    "N40253": "https://us.louisvuitton.com/eng-us/products/artsy-damier-azur-canvas-nvprod1600192v"}
+
 LV_BASE_URL = "https://us.louisvuitton.com/eng-us/homepage"
-BAG_URL = "https://us.louisvuitton.com/eng-us/products/neverfull-mm-damier-azur-canvas-008109#N41605"
 
 
 def random_sleep(base_time=1, upper_bound=10):
@@ -28,7 +32,7 @@ def init_webdriver():
     return driver
 
 
-def visit_homepage_and_nav_to_bag_and_check_avail(driver):
+def visit_homepage_and_nav_to_bag_and_check_avail(driver, item_id):
     is_available = False
 
     try:
@@ -41,29 +45,26 @@ def visit_homepage_and_nav_to_bag_and_check_avail(driver):
             logging.debug("Found search box, entering text...")
             search_box.clear()
             search_box.click()
-            search_box.send_keys(BAG_MODEL)
+            search_box.send_keys(item_id)
             search_box.send_keys(Keys.ENTER)
 
-            if BAG_MODEL in driver.title:
-                logging.debug("On target bag page. Title is {}".format(driver.title))
-                random_sleep()
+            logging.debug("On target page for item '{}'. Title is {}".format(item_id, driver.title))
+            random_sleep()
 
-                stock_span = driver.find_element_by_class_name("lv-stock-indicator")
+            stock_span = driver.find_element_by_class_name("lv-stock-indicator")
 
-                if stock_span:
-                    logging.debug("Found stock span")
-                    div_text = stock_span.text
-                    if "Out" in div_text:
-                        logging.info("Item determined to be unavailable based on div text '{}'".format(div_text))
-                    elif "Information Not Available" in div_text:
-                        logging.warning("Unable to determine stock status from text '{}'".format(div_text))
-                    else:
-                        logging.info("Item determined to be available based on div text '{}'".format(div_text))
-                        is_available = True
+            if stock_span:
+                logging.debug("Found stock span")
+                div_text = stock_span.text
+                if "Out" in div_text:
+                    logging.info("Item determined to be unavailable based on div text '{}'".format(div_text))
+                elif "Information Not Available" in div_text:
+                    logging.warning("Unable to determine stock status from text '{}'".format(div_text))
                 else:
-                    logging.warning("Did not find stock span, make sure this is correct....")
+                    logging.info("Item determined to be available based on div text '{}'".format(div_text))
+                    is_available = True
             else:
-                logging.warning("Did not make it to the desired bag page. Current page title is '{}'".format(driver.title))
+                logging.warning("Did not find stock span, make sure this is correct....")
         else:
             logging.warning("Could not find search box...")
     except Exception as e:
@@ -134,10 +135,10 @@ def setup_twilio_client():
     return Client(account_sid, auth_token)
 
 
-def send_in_stock_notification():
+def send_in_stock_notification(item_id):
     try:
         twilio_client = setup_twilio_client()
-        msg = "Your item is available for purchase: {}".format(BAG_URL)
+        msg = "Your item is available for purchase: {}".format(WATCH_ITEMS_DICT.get(item_id))
         twilio_client.messages.create(
             body=msg,
             from_=secrets.TWILIO_FROM_NUMBER,
@@ -153,34 +154,58 @@ def send_in_stock_notification():
 
 
 def send_start_up_notification():
-    random_sleep(30)
     try:
         twilio_client = setup_twilio_client()
         twilio_client.messages.create(
-            body="Starting up Louis Vitton Bag watcher",
+            body="Starting up Louis Vitton Item watcher",
             from_=secrets.TWILIO_FROM_NUMBER,
             to=secrets.PHONE_NUMBER_1
         )
 
-        twilio_client.messages.create(
-            body="Starting up Louis Vitton Bag watcher",
-            from_=secrets.TWILIO_FROM_NUMBER,
-            to=secrets.PHONE_NUMBER_2
-        )
+        # twilio_client.messages.create(
+        #     body="Starting up Louis Vitton Bag watcher",
+        #     from_=secrets.TWILIO_FROM_NUMBER,
+        #     to=secrets.PHONE_NUMBER_2
+        # )
     except Exception as e:
         logging.error("Unable to send SMS notification", e)
 
 
 def check_inventory(driver):
-    if visit_homepage_and_nav_to_bag_and_check_avail(driver):
-        logging.info("!!!!!!!!!!!!!!!Bag is available!!!!!!!!!!!!!")
-        send_in_stock_notification()
+    checked_item_ids = []
+
+    while len(checked_item_ids) < len(WATCH_ITEMS_DICT):
+        # Get next item ID to check availability
+        next_item_id = randomly_get_next_item_id(checked_item_ids)
+        # Add item id to list so we dont check it again
+        checked_item_ids.append(next_item_id)
+        if visit_homepage_and_nav_to_bag_and_check_avail(driver, next_item_id):
+            logging.info("!!!!!!!!!!!!!!!Item '{}' is available!!!!!!!!!!!!!".format(next_item_id))
+            send_in_stock_notification(next_item_id)
+
+    logging.info("Finished checked for in-stock status of {} items".format(len(checked_item_ids)))
+
+
+def randomly_get_next_item_id(already_chosen_item_ids):
+    next_item_id = None
+
+    while not next_item_id:
+        for item_id in WATCH_ITEMS_DICT.keys():
+            if random.randint(1, len(WATCH_ITEMS_DICT)) == random.randint(1, len(WATCH_ITEMS_DICT)):
+                if item_id not in already_chosen_item_ids:
+                    logging.info("Next item id to check stock status is '{}'".format(item_id))
+                    next_item_id = item_id
+                    break
+                else:
+                    logging.debug("Item id '{}' has already been chosen, trying again".format(item_id))
+
+    return next_item_id
 
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
     count_check = 0
-    logging.info("Starting script to check for availability of bag '{}'".format(BAG_MODEL))
+    logging.info("Starting script to check for availability {} LV items".format(len(WATCH_ITEMS_DICT)))
     send_start_up_notification()
 
     driver = init_webdriver()
@@ -194,13 +219,13 @@ if __name__ == "__main__":
             random_sleep(3, 5)
             rand_pages_visited = rand_pages_visited + 1
 
-        logging.info("Checking site for stock of '{}'...".format(BAG_MODEL))
+        logging.info("Checking site for stock of {} items...".format(len(WATCH_ITEMS_DICT)))
         check_inventory(driver)
 
         count_check = count_check + 1
         if count_check % 10 == 0:
             logging.info("Checked for in-stock status {:,} times so far".format(count_check))
         else:
-            logging.debug("Checked or in-stock status {:,} times so far".format(count_check))
+            logging.debug("Checked for in-stock status {:,} times so far".format(count_check))
 
         random_sleep(20, 30)
