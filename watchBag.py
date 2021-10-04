@@ -7,11 +7,12 @@ import random
 import secrets  # from secrets.py in this folder
 
 MAIN_SECTIONS = ["NEW", "WOMEN", "MEN"]
-WATCH_ITEMS_DICT = {"N50047": "https://us.louisvuitton.com/eng-us/products/neverfull-mm-damier-azur-canvas-nvprod2800151v",
+WATCH_ITEMS_DICT = {
+		    #"N50047": "https://us.louisvuitton.com/eng-us/products/neverfull-mm-damier-azur-canvas-nvprod2800151v",
                     "N41605": "https://us.louisvuitton.com/eng-us/products/neverfull-mm-damier-azur-canvas-008109",
-                    "N41604": "https://us.louisvuitton.com/eng-us/products/neverfull-gm-damier-azur-canvas-008066",
-                    "N42233": "https://us.louisvuitton.com/eng-us/products/graceful-mm-damier-azur-canvas-nvprod840044v",
-                    "N40253": "https://us.louisvuitton.com/eng-us/products/artsy-damier-azur-canvas-nvprod1600192v"}
+                    "N41604": "https://us.louisvuitton.com/eng-us/products/neverfull-gm-damier-azur-canvas-008066"}
+                    #"N42233": "https://us.louisvuitton.com/eng-us/products/graceful-mm-damier-azur-canvas-nvprod840044v",
+                    #"N40253": "https://us.louisvuitton.com/eng-us/products/artsy-damier-azur-canvas-nvprod1600192v"}
 
 LV_BASE_URL = "https://us.louisvuitton.com/eng-us/homepage"
 
